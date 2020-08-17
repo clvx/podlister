@@ -67,7 +67,7 @@ resources:
 autoscaling:
   enabled: true
   minReplicas: 1
-  maxReplicas: 10
+  maxReplicas: 3
   targetCPUUtilizationPercentage: 10
   # targetMemoryUtilizationPercentage: 80
 
@@ -76,3 +76,9 @@ nodeSelector: {}
 tolerations: []
 
 affinity: {}
+
+cronjob:
+  image:
+    repository: clvx/podlister
+    tag: "latest"
+

@@ -1,0 +1,28 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: {{ include "swarm.fullname" .}}
+  labels:
+    {{- include "swarm.labels" . | nindent 4 }}
+spec:
+  schedule: "*/1 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: "cron-{{ .Chart.Name }}"
+            image: "{{ .Values.cronjob.image.repository }}:{{ .Values.cronjob.image.tag }}"
+            env:
+            - name: SPACES_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: podlister
+                  key: spaces-key
+            - name: SPACES_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: podlister
+                  key: spaces-secret
+          restartPolicy: OnFailure
+          serviceAccount: {{ include "swarm.serviceAccountName" . }} 
