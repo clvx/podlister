@@ -45,3 +45,20 @@ We will be looking for things like:
 
 Remember though, this is a chance for you to be creative and show off, so let us see what you
 can do, and try to have some fun with it!
+
+
+## Discussion
+
+### Node information
+
+The current implementation using CronJobs will have the following issues:
+- It runs only over a period of time. If real time updates are necessary, then a 
+deployment might be a better option with a polling logic which is always pushing the current state. 
+The downside of this approach is always hitting the blob storage endpoint. In that case, using 
+a distributed storage to place a file which is mounted to all nodes would be a better approach; however,
+this would be limited by cluster or region boundaries.
+- Another point to take in account is that the current implementation does not keep previous data; hence, 
+information is for the specific moment in time. This can be fixed if files are uploaded with a unique 
+string; then, another logic in the frontend can pull the right information checking the latest timestamp.
+Another approach is pulling data from the bucket, and add new data until reaches a threshold then partition 
+the data.
