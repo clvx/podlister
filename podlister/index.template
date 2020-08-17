@@ -1,0 +1,13 @@
+<html>
+  <head>
+    <title>Nginx Endpoints</title>
+  </head>
+  <body>
+    <h2>{{ .Svc }} endpoints</h2>
+    <ul>
+      {{ range $element := .Ips }} 
+        <li>{{ $element }}</li>
+      {{ end }}
+    </ul>
+  </body>
+</html>
