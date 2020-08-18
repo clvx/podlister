@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"io/ioutil"
 	"log"
 	"os"
 	"strings"
@@ -11,19 +12,54 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/ilyakaznacheev/cleanenv"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
 
+type Config struct {
+	Bucket struct {
+		Key       string `env:"BUCKET_KEY" env-description:"Bucket key"`
+		Secret    string `env:"BUCKET_SECRET" env-required:"Bucket secret"`
+		URL       string `yaml:"url" env:"BUCKET_URL" env-default:"https://nyc3.digitaloceanspaces.com"`
+		Name      string `yaml:"name" env:"BUCKET_NAME" env-default:"pd-swarm"`
+		Region    string `yaml:"region" env:"BUCKET_REGION" env-default:"us-east-1"`
+		Privilege string `yaml:"privilege" env:"BUCKET_PRIVILEGE" env-default:"public-read"`
+	} `yaml:"bucket"`
+	Template struct {
+		Name   string `yaml:"name" env:"TEMPLATE_NAME" env-default:"index.template"`
+		Output string `yaml:"output" env:"TEMPLATE_OUTPUT" env-default:"index.html"`
+	} `yaml:"template"`
+	Service struct {
+		Name   string `yaml:"name" env:"SERVICE_NAME" env-required:"Service name"`
+	} `yaml:"service"`
+}
+
 type Endpoint struct {
-	Svc string
-	Ips []string
+	Namespace string
+	Svc       string
+	Ips       []string
+}
+
+var (
+	namespacePath = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
+	configPath = "./config.yaml"
+)
+
+
+func getNamespace(cs *kubernetes.Clientset, endp *Endpoint) error {
+	namespace, err := ioutil.ReadFile(namespacePath)
+	if err != nil {
+		return err 
+	}
+	endp.Namespace = string(namespace)
+	return nil
 }
 
 func getAddresses(cs *kubernetes.Clientset, endp *Endpoint) error {
 	ipaddrs := []string{}
-	endpoints, err := cs.CoreV1().Endpoints("pd").Get(endp.Svc, v1.GetOptions{})
+	endpoints, err := cs.CoreV1().Endpoints(endp.Namespace).Get(endp.Svc, v1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -37,6 +73,13 @@ func getAddresses(cs *kubernetes.Clientset, endp *Endpoint) error {
 }
 
 func main() {
+	var cfg Config
+
+	if err := cleanenv.ReadConfig(configPath, &cfg); err != nil {
+		log.Println(err)
+		os.Exit(2)
+	}
+
 	// Creates the in-cluster config
 	config, err := rest.InClusterConfig()
 	if err != nil {
@@ -49,41 +92,44 @@ func main() {
 	}
 
 	// Obtaining endpoints
-	endpoint := &Endpoint{Svc: "pd-swarm"}
+	endpoint := &Endpoint{Svc: cfg.Service.Name}
+	err = getNamespace(clientset, endpoint)
+	if err != nil {
+		log.Println(err)
+		os.Exit(2)
+	}
 	err = getAddresses(clientset, endpoint)
 	if err != nil {
 		log.Println(err)
+		os.Exit(2)
 	}
 
 	//Rendering template
 	var tpl bytes.Buffer
-	tmpl := template.Must(template.ParseFiles("index.template"))
+	tmpl := template.Must(template.ParseFiles(cfg.Template.Name))
 	if err = tmpl.Execute(&tpl, endpoint); err != nil {
 		log.Println(err)
+		os.Exit(2)
 	}
 
-	// Write function to upload to object storage
-	key := os.Getenv("SPACES_KEY")
-	secret := os.Getenv("SPACES_SECRET")
-
+	//Uploading data
 	s3config := &aws.Config{
-		Credentials: credentials.NewStaticCredentials(key, secret, ""),
-		Endpoint:    aws.String("https://nyc3.digitaloceanspaces.com"),
-		Region:      aws.String("us-east-1"),
+		Credentials: credentials.NewStaticCredentials(cfg.Bucket.Key, cfg.Bucket.Secret, ""),
+		Endpoint:    aws.String(cfg.Bucket.URL),
+		Region:      aws.String(cfg.Bucket.Region),
 	}
 	newSession := session.New(s3config)
 	s3Client := s3.New(newSession)
 
-	//TODO: manage inputs
 	object := s3.PutObjectInput{
-		Bucket: aws.String("pd-swarm"),
-		Key:    aws.String("index.html"),
+		Bucket: aws.String(cfg.Bucket.Name),
+		Key:    aws.String(cfg.Template.Output),
 		Body:   strings.NewReader(tpl.String()),
-		ACL:    aws.String("public-read"),
+		ACL:    aws.String(cfg.Bucket.Privilege),
 	}
 	_, err = s3Client.PutObject(&object)
 	if err != nil {
 		log.Println(err.Error())
+		os.Exit(2)
 	}
-
 }

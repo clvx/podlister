@@ -8,5 +8,5 @@ FROM alpine
 WORKDIR /go
 RUN apk update && apk add ca-certificates && rm -rf /var/cache/apk/*
 COPY --from=build /bin/podlister /go/podlister
-COPY index.template /go/
+COPY index.template config.yaml /go/
 ENTRYPOINT ["/go/podlister"]
