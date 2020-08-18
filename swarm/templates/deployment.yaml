@@ -53,7 +53,7 @@ spec:
       volumes:
       - name: volume-nginx
         configMap:
-          name: config-nginx
+          name: {{ include "swarm.fullname" . }}-nginx
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

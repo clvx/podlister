@@ -1,7 +1,7 @@
 apiVersion: batch/v1beta1
 kind: CronJob
 metadata:
-  name: {{ include "swarm.fullname" .}}
+  name: {{ include "swarm.fullname" .}}-cj
   labels:
     {{- include "swarm.labels" . | nindent 4 }}
 spec:
@@ -11,18 +11,24 @@ spec:
       template:
         spec:
           containers:
-          - name: "cron-{{ .Chart.Name }}"
+          - name: "{{ .Chart.Name }}"
             image: "{{ .Values.cronjob.image.repository }}:{{ .Values.cronjob.image.tag }}"
             env:
-            - name: SPACES_KEY
+            - name: BUCKET_KEY
               valueFrom:
                 secretKeyRef:
-                  name: podlister
-                  key: spaces-key
-            - name: SPACES_SECRET
+                  name: {{ include "swarm.fullname" . }}-podlister
+                  key: bucket-key
+            - name: BUCKET_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: podlister
-                  key: spaces-secret
+                  name: {{ include "swarm.fullname" . }}-podlister
+                  key: bucket-secret
+            - name: SERVICE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "swarm.fullname" . }}-podlister
+                  key: service-name
+
           restartPolicy: OnFailure
           serviceAccount: {{ include "swarm.serviceAccountName" . }} 
