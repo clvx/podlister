@@ -89,3 +89,5 @@ secrets:
 configmap:
   podlister:
     name: 
+  nginx:
+    proxy: https://pd-swarm.nyc3.digitaloceanspaces.com/

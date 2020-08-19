@@ -6,7 +6,7 @@ data:
         server_name  localhost;
 
         location / {
-            proxy_pass https://pd-swarm.nyc3.digitaloceanspaces.com/;
+            proxy_pass {{ .Values.configmap.nginx.proxy }};
             proxy_hide_header      Strict-Transport-Security;
         }
 
