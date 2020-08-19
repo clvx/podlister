@@ -24,7 +24,8 @@ metadata:
 ---
 apiVersion: v1
 data:
-  service-name: {{ .Values.configmap.podlister.name | default "" }}
+  serviceName: {{ .Values.configmap.podlister.serviceName | default "" }}
+  bucketName: {{ .Values.configmap.podlister.bucketName | default "" }}
 kind: ConfigMap
 metadata:
   name: {{ include "swarm.fullname" . }}-podlister

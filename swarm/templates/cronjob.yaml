@@ -28,7 +28,11 @@ spec:
               valueFrom:
                 configMapKeyRef:
                   name: {{ include "swarm.fullname" . }}-podlister
-                  key: service-name
-
+                  key: serviceName
+            - name: BUCKET_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "swarm.fullname" . }}-podlister
+                  key: bucketName
           restartPolicy: OnFailure
           serviceAccount: {{ include "swarm.serviceAccountName" . }} 

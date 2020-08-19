@@ -20,10 +20,10 @@ import (
 
 type Config struct {
 	Bucket struct {
-		Key       string `env:"BUCKET_KEY" env-description:"Bucket key"`
+		Key       string `env:"BUCKET_KEY" env-required:"Bucket key"`
 		Secret    string `env:"BUCKET_SECRET" env-required:"Bucket secret"`
 		URL       string `yaml:"url" env:"BUCKET_URL" env-default:"https://nyc3.digitaloceanspaces.com"`
-		Name      string `yaml:"name" env:"BUCKET_NAME" env-default:"pd-swarm"`
+		Name      string `yaml:"name" env:"BUCKET_NAME" env-required:"Bucket name"`
 		Region    string `yaml:"region" env:"BUCKET_REGION" env-default:"us-east-1"`
 		Privilege string `yaml:"privilege" env:"BUCKET_PRIVILEGE" env-default:"public-read"`
 	} `yaml:"bucket"`
@@ -131,5 +131,7 @@ func main() {
 	if err != nil {
 		log.Println(err.Error())
 		os.Exit(2)
+	} else {
+		log.Printf("%s Uploaded successfully", cfg.Template.Output)
 	}
 }
