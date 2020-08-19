@@ -21,6 +21,7 @@ container deployment.
 - Docker 19.03.12
 - Digital Ocean Kubernetes
 - Digital Ocean Spaces Storage Object
+- Docker registry
 
 Even though the above are the major dependencies, this has been developed using 
 `Ubuntu 20.04`.
@@ -67,7 +68,7 @@ variables:
     - BUCKET_KEY:       BLOB key
     - BUCKET_SECRET:    BLOB secret
     - BUCKET_URL:       BLOB url
-    - BUCKET_NAME      
+    - BUCKET_NAME:      BLOB name      
     - BUCKET_PRIVILEGE: public-read by default
     - TEMPLATE_NAME:    template name to be used to dump endpoint values. Defaulted to `index.template`
     - TEMPLATE_OUTPUT:  object name in the bucket. Defaulted to `index.html`
@@ -82,18 +83,31 @@ service account with proper permissions is necessary to pull information from th
 
 ### Usage
 
+    #Obtain a kubernetes cluster
+    # Configure kubectl 
+
+    #Create a Space Blob Storage
+    # Obtain API credentials: https://www.digitalocean.com/community/tutorials/how-to-create-a-digitalocean-space-and-api-key
+    # Export API credentials as SPACES_KEY abd SPACES_SECRET, or override values in MAKEFILE
+
+    #Connect to your own docker registry
+    docker login
+
+    #Modify values in Makefile
+    # Helm release
+    # Docker repository
+
     #Configuring, building, pushing and deploying app.
-    make configure build push helm-deploy
+    make build push configure deploy
 
     #Testing HPA
-    helm get notes ${RELEASE_NAME}
-    #Copy the output commands which have the following structures:
-    #export POD_NAME=$(kubectl ...)
-    #kubectl port-forward $POD_NAME 8080:80
+    #kubectl port-forward service/${SERVICE_NAME} 8080:80
     #Execute load test
     make test-load
 
-Load test would depend on your hpa values. Please refer to `hpa` in `swarm/values.yaml`
+### Load test 
+
+- It would depend on your hpa values. Please refer to `hpa` in `swarm/values.yaml`
 
 ## Discussion
 
@@ -105,8 +119,38 @@ deployment might be a better option with a polling logic which is always pushing
 The downside of this approach is always hitting the blob storage endpoint. In that case, using 
 a distributed storage to place a file which is mounted to all nodes would be a better approach; however,
 this would be limited by cluster or region boundaries.
+
 - Another point to take in account is that the current implementation does not keep previous data; hence, 
 information is for the specific moment in time. This can be fixed if files are uploaded with a unique 
 string; then, another logic in the frontend can pull the right information checking the latest timestamp.
 Another approach is pulling data from the bucket, and add new data until reaches a threshold then partition 
 the data.
+
+### Load
+
+- Current implementation has a request of 100m CPU per nginx container per pod. 
+Each pod has only one nginx container. Depending on the node specs and node pool size(if autoscaling or fixed), the 
+expected handled load would vary. HPA will trigger a new pod every time the combined resource usage hits 25% or more.
+
+### Availability
+
+Currently all the infrastructure layout is manual which increases the time to repair in case the cluster 
+has a major misconfiguration. A better approach is having the infrastructure coded. As it provides reproducibility, 
+a failover cluster could be created almost instantly or a cold one could be waiting to start rolling in case of failure. 
+If the cloud provider has an outage, as the solution was developed on kubernetes, it could be replicated in another 
+provider(again using IAC) and do failover by DNS.
+
+## Observability
+
+- As every container writes to stdout, having a process reading the standard out and forwarding the information with pod metadata would suffice to manage logging. Systems doing this approach: Loki, EFK, etc. 
+
+## Security
+
+- There are several way to apply security to a Kubernetes cluster. Best approach is following 
+the Docker and Kubernetes CIS Benchmark. It provides the requirements to secure in a k8s cluster.
+These might include:
+    - Pod security policies(not running as root, not mounting host fs, etc).
+    - RBAC, not mounting service account secrets, and having a service account for you application(review included chart).
+    - Admission policies.
+    - Building your own images(avoid pulling external or non verified images).
+    - Verifying image signing.
