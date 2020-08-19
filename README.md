@@ -1,51 +1,99 @@
 ## Overview
 
-Your mission, should you choose to accept it, is to construct a system which uses a load balancer
-to balance traffic between any number of nginx containers, which serve a static file containing the
-IP addresses of all of the currently connected nginx containers.
-This should all work on the fly as nginx containers are added or removed.
+Construct a system which uses a load balancer to balance traffic between any number 
+of nginx containers, which serve a static file containing the IP addresses of all 
+of the currently connected nginx containers. This should all work on the fly as 
+nginx containers are added or removed.
 
-## Requirements
+Review `REQUIREMENTS.md` for constraints details.
 
-To make things more interesting, you will have some specific constraints and requirements:
+## Podlister
 
-1. Each nginx instance must run in a separate docker container.
+Podlister uses a cronjob to pull service endpoint information of a custom nginx 
+container deployment.
 
-2. You must use the alpine:3.10 image from the public docker repository as the base of your
-docker images (yes, we know there are pre‐built nginx images).
+### Dependencies
 
-3. This should be a highly available solution. Incorporate load balancing and container
-lifecycle management tools with your choice of technologies. This may include Terraform,
-Ansible, Consul, HAProxy, AWS ECS, AWS ELB, Kubernetes, Docker Compose or
-similar.
+- Helm 3
+- Kubernetes 1.17
+- Kubectl v 1.17
+- Go version 1.14.7
+- Docker 19.03.12
+- Digital Ocean Kubernetes
+- Digital Ocean Spaces Storage Object
 
-4. Commit any work to a new repo, push, and share the git URL with us when you are ready
-to start showing your work.
+Even though the above are the major dependencies, this has been developed using 
+`Ubuntu 20.04`.
 
-5. Make sure that there are sufficient and easy‐to‐find instructions and documentation
-contained within the repository so that we can build, run, and test what you've done as
-appropriate.
+### Layout
+    .
+    ├── Makefile
+    ├── nginx
+    │   ├── docker-entrypoint.sh
+    │   ├── Dockerfile
+    │   └── LICENSE
+    ├── podlister
+    │   ├── config.yaml
+    │   ├── Dockerfile
+    │   ├── go.mod
+    │   ├── go.sum
+    │   ├── index.template
+    │   └── main.go
+    ├── README.md
+    └── swarm
+        ├── Chart.yaml
+        ├── templates
+        │   ├── configmap.yaml
+        │   ├── cronjob.yaml
+        │   ├── deployment.yaml
+        │   ├── _helpers.tpl
+        │   ├── hpa.yaml
+        │   ├── ingress.yaml
+        │   ├── NOTES.txt
+        │   ├── rolebinding.yaml
+        │   ├── secrets.yaml
+        │   ├── serviceaccount.yaml
+        │   ├── service.yaml
+        │   └── tests
+        │       └── test-connection.yaml
+        └── values.yaml
 
-Bonus:
-1. How would this be configured to maximize availability. (documentation only)
-2. What loads would this spinup be able to handle. (documentation only)
-3. How would logging, security be applied. (documentation only)
+    5 directories, 25 files
 
-As long as your solution follows the above requirements, you are free (and encouraged!) to add
-any other bits and pieces you'd like to make it fancier or otherwise more fun.
+- `podlister/` is the ip pod discovery program written in golang using k8s and aws sdk 
+to pull and upload the data. Podlister pulls endpoint information every minute. Then, 
+it pushes this data to a Space bucket. Spaces is S3 compatible.
+variables:
+    - BUCKET_KEY:       BLOB key
+    - BUCKET_SECRET:    BLOB secret
+    - BUCKET_URL:       BLOB url
+    - BUCKET_NAME      
+    - BUCKET_PRIVILEGE: public-read by default
+    - TEMPLATE_NAME:    template name to be used to dump endpoint values. Defaulted to `index.template`
+    - TEMPLATE_OUTPUT:  object name in the bucket. Defaulted to `index.html`
+    - SERVICE_NAME:     k8s service to scan.
+- `nginx/` is a fork of `nginx:alpine` using `alpine 3.10` without some helper scripts.
+It servers the Spaces bucket information.
+- `swarm/` is the helm chart to deploy the `nginx` and `podlister` applications.
+It defines the following:
+- `nginx`: deployment + service + configmap + hpa.
+- `podlister`: cronjob + secrets + configmap + serviceaccount + rolebinding.  A 
+service account with proper permissions is necessary to pull information from the k8s API.
 
-What we’ll be looking for
+### Usage
 
-This is intentionally a very open ended exercise, so there is no single right or wrong answer.
-We will be looking for things like:
-1. Everything runs.
-2. How you approached and thought through the problem.
-3. How well you know and used the features of the tools and libraries you made use of.
-4. How professionally "put together" and engineered everything is.
+    #Configuring, building, pushing and deploying app.
+    make configure build push helm-deploy
 
-Remember though, this is a chance for you to be creative and show off, so let us see what you
-can do, and try to have some fun with it!
+    #Testing HPA
+    helm get notes ${RELEASE_NAME}
+    #Copy the output commands which have the following structures:
+    #export POD_NAME=$(kubectl ...)
+    #kubectl port-forward $POD_NAME 8080:80
+    #Execute load test
+    make test-load
 
+Load test would depend on your hpa values. Please refer to `hpa` in `swarm/values.yaml`
 
 ## Discussion
 
