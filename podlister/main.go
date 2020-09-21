@@ -2,78 +2,32 @@ package main
 
 import (
 	"bytes"
-	"io/ioutil"
 	"log"
 	"os"
 	"strings"
 	"text/template"
+
+	"podlister/config"
+	"podlister/endpoint"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/ilyakaznacheev/cleanenv"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
 
-type Config struct {
-	Bucket struct {
-		Key       string `env:"BUCKET_KEY" env-required:"Bucket key"`
-		Secret    string `env:"BUCKET_SECRET" env-required:"Bucket secret"`
-		URL       string `yaml:"url" env:"BUCKET_URL" env-default:"https://nyc3.digitaloceanspaces.com"`
-		Name      string `yaml:"name" env:"BUCKET_NAME" env-required:"Bucket name"`
-		Region    string `yaml:"region" env:"BUCKET_REGION" env-default:"us-east-1"`
-		Privilege string `yaml:"privilege" env:"BUCKET_PRIVILEGE" env-default:"public-read"`
-	} `yaml:"bucket"`
-	Template struct {
-		Name   string `yaml:"name" env:"TEMPLATE_NAME" env-default:"index.template"`
-		Output string `yaml:"output" env:"TEMPLATE_OUTPUT" env-default:"index.html"`
-	} `yaml:"template"`
-	Service struct {
-		Name   string `yaml:"name" env:"SERVICE_NAME" env-required:"Service name"`
-	} `yaml:"service"`
-}
-
-type Endpoint struct {
-	Namespace string
-	Svc       string
-	Ips       []string
-}
-
 var (
 	namespacePath = "/var/run/secrets/kubernetes.io/serviceaccount/namespace"
-	configPath = "./config.yaml"
+	configPath    = "./config/config.yaml"
 )
 
 
-func getNamespace(cs *kubernetes.Clientset, endp *Endpoint) error {
-	namespace, err := ioutil.ReadFile(namespacePath)
-	if err != nil {
-		return err 
-	}
-	endp.Namespace = string(namespace)
-	return nil
-}
-
-func getAddresses(cs *kubernetes.Clientset, endp *Endpoint) error {
-	ipaddrs := []string{}
-	endpoints, err := cs.CoreV1().Endpoints(endp.Namespace).Get(endp.Svc, v1.GetOptions{})
-	if err != nil {
-		return err
-	}
-	for _, subsets := range endpoints.Subsets {
-		for _, addresses := range subsets.Addresses {
-			ipaddrs = append(ipaddrs, addresses.IP)
-		}
-	}
-	endp.Ips = ipaddrs
-	return nil
-}
 
 func main() {
-	var cfg Config
+	var cfg config.Config
 
 	if err := cleanenv.ReadConfig(configPath, &cfg); err != nil {
 		log.Println(err)
@@ -92,13 +46,13 @@ func main() {
 	}
 
 	// Obtaining endpoints
-	endpoint := &Endpoint{Svc: cfg.Service.Name}
-	err = getNamespace(clientset, endpoint)
+	end := &endpoint.Endpoint{Svc: cfg.Service.Name}
+	err = end.GetNamespace(clientset, namespacePath)
 	if err != nil {
 		log.Println(err)
 		os.Exit(2)
 	}
-	err = getAddresses(clientset, endpoint)
+	err = end.GetAddresses(clientset)
 	if err != nil {
 		log.Println(err)
 		os.Exit(2)
@@ -107,7 +61,7 @@ func main() {
 	//Rendering template
 	var tpl bytes.Buffer
 	tmpl := template.Must(template.ParseFiles(cfg.Template.Name))
-	if err = tmpl.Execute(&tpl, endpoint); err != nil {
+	if err = tmpl.Execute(&tpl, end); err != nil {
 		log.Println(err)
 		os.Exit(2)
 	}
