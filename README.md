@@ -29,10 +29,6 @@ Even though the above are the major dependencies, this has been developed using
 ### Layout
     .
     ├── Makefile
-    ├── nginx
-    │   ├── docker-entrypoint.sh
-    │   ├── Dockerfile
-    │   └── LICENSE
     ├── podlister
     │   ├── config.yaml
     │   ├── Dockerfile
@@ -73,8 +69,6 @@ variables:
     - TEMPLATE_NAME:    template name to be used to dump endpoint values. Defaulted to `index.template`
     - TEMPLATE_OUTPUT:  object name in the bucket. Defaulted to `index.html`
     - SERVICE_NAME:     k8s service to scan.
-- `nginx/` is a fork of `nginx:alpine` using `alpine 3.10` without some helper scripts.
-It servers the Spaces bucket information.
 - `swarm/` is the helm chart to deploy the `nginx` and `podlister` applications.
 It defines the following:
 - `nginx`: deployment + service + configmap + hpa.
