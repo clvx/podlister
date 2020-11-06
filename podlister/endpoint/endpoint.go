@@ -7,6 +7,8 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+var readFile = ioutil.ReadFile
+
 type Endpoint struct {
 	Namespace string
 	Svc       string
@@ -14,8 +16,8 @@ type Endpoint struct {
 }
 
 //GetNamespace returns current namespace
-func (e Endpoint) GetNamespace(cs *kubernetes.Clientset, namespacePath string) error {
-	namespace, err := ioutil.ReadFile(namespacePath)
+func (e *Endpoint) GetNamespace(namespacePath string) error {
+	namespace, err := readFile(namespacePath)
 	if err != nil {
 		return err
 	}
@@ -24,7 +26,8 @@ func (e Endpoint) GetNamespace(cs *kubernetes.Clientset, namespacePath string) e
 }
 
 //GetAddresses returns ipaddrs for a service in a namespace
-func (e Endpoint) GetAddresses(cs *kubernetes.Clientset) error {
+// TODO:Add GetAddresses test
+func (e *Endpoint) GetAddresses(cs *kubernetes.Clientset) error {
 	ipaddrs := []string{}
 	endpoints, err := cs.CoreV1().Endpoints(e.Namespace).Get(e.Svc, v1.GetOptions{})
 	if err != nil {

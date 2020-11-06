@@ -24,8 +24,6 @@ var (
 	configPath    = "./config/config.yaml"
 )
 
-
-
 func main() {
 	var cfg config.Config
 
@@ -47,7 +45,7 @@ func main() {
 
 	// Obtaining endpoints
 	end := &endpoint.Endpoint{Svc: cfg.Service.Name}
-	err = end.GetNamespace(clientset, namespacePath)
+	err = end.GetNamespace(namespacePath)
 	if err != nil {
 		log.Println(err)
 		os.Exit(2)
