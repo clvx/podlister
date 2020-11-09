@@ -15,6 +15,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/ilyakaznacheev/cleanenv"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
@@ -50,11 +51,12 @@ func main() {
 		log.Println(err)
 		os.Exit(2)
 	}
-	err = end.GetAddresses(clientset)
+	endpoints, err := clientset.CoreV1().Endpoints(end.Namespace).Get(end.Svc, v1.GetOptions{})
 	if err != nil {
 		log.Println(err)
 		os.Exit(2)
 	}
+	end.GetAddresses(endpoints)
 
 	//Rendering template
 	var tpl bytes.Buffer
