@@ -15,6 +15,11 @@ build_app:
   tags:
   - ubuntu
 
+sleepy:
+  stage: test
+  script:
+  - sleep 30
+
 test_app:
   stage: test
   script:
