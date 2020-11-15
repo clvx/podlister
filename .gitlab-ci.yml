@@ -1,10 +1,22 @@
+variables:
+  FOO: "BAR"
 before_script:
 - cat /etc/os-release
 
-build:
+stages:
+- build
+- test
+
+build_app:
+  stage: build
   script:
   - cd podlister && go build
+  tags:
+  - ubuntu
 
-test:
+test_app:
+  stage: test
   script:
-  - cd podlister && go test ./... 
+  - cd podlister && go test ./... && echo $FOO
+  tags:
+  - ubuntu
