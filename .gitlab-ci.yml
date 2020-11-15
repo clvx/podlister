@@ -1,0 +1,10 @@
+before_script:
+- cat /etc/os-release
+
+build:
+  script:
+  - cd podlister && go build
+
+test:
+  script:
+  - cd podlister && go test ./... 
