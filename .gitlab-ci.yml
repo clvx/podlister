@@ -2,6 +2,7 @@ variables:
   FOO: "BAR"
 before_script:
 - cat /etc/os-release
+- env
 
 stages:
 - build
