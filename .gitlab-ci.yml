@@ -2,7 +2,7 @@ variables:
   FOO: "BAR"
 before_script:
 - cat /etc/os-release
-- env | grep -E 'HELLO|FOO|Hola'
+- env | grep -E 'HELLO|FOO|Hola|INNER|CLOSE'
 
 stages:
 - build
@@ -25,6 +25,6 @@ sleepy:
 test_app:
   stage: test
   script:
-  - cd podlister && go test ./... && echo $FOO $HELLO $Hola
+  - cd podlister && go test ./... && echo $FOO $HELLO $Hola $INNER $CLOSE
   tags:
   - ubuntu
