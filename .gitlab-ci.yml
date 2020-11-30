@@ -25,6 +25,6 @@ sleepy:
 test_app:
   stage: test
   script:
-  - cd podlister && go test ./... && echo $FOO $HELLO $Hola $INNER $CLOSE
+  - cd podlister && go test ./... && echo -e "$FOO\n$HELLO\n$Hola\n$INNER\n$CLOSE"
   tags:
   - ubuntu
