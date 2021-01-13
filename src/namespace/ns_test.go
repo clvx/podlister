@@ -8,16 +8,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestSetNamespace(t *testing.T) {
-	namespace := "default"
-
-	n := Namespace{}
-	n.setNamespace(namespace)
-	if namespace != n.Items[0] {
-		t.Errorf("wanted %s, got %s", namespace, n.Items[0])
-	}
-}
-
 func TestGetNamespaces(t *testing.T) {
 	n := Namespace{}
 	namespaces := []apiCoreV1.Namespace{
@@ -50,7 +40,7 @@ func TestGetNamespaces(t *testing.T) {
 
 		expected := Namespace{[]string{"foo", "bar"}}
 
-		n.getNamespaces(namespaces)
+		n.GetNamespaces(namespaces)
 		if !reflect.DeepEqual(expected.Items, n.Items) {
 			t.Errorf("wanted %v, got %v", expected.Items, n.Items)
 		}
@@ -58,7 +48,7 @@ func TestGetNamespaces(t *testing.T) {
 	t.Run("Namespaces with kube-system", func(t *testing.T) {
 		expected := Namespace{[]string{"foo", "bar"}}
 
-		n.getNamespaces(namespaces)
+		n.GetNamespaces(namespaces)
 
 		if !reflect.DeepEqual(expected.Items, n.Items) {
 			t.Errorf("wanted %v, got %v", expected, n.Items)
@@ -97,14 +87,14 @@ func TestFilteredNamespaces(t *testing.T) {
 	}
 	t.Run("filtered namespace", func(t *testing.T){
 		nsList := []string{"foo"}
-		err := n.getFilteredNamespaces(namespaces, nsList)
+		err := n.GetFilteredNamespaces(namespaces, nsList)
 		if err != nil {
 			t.Errorf("wanted %v, got %v", nil, err)
 		}
 	})
 	t.Run("Non existent namespace", func(t *testing.T){
 		nsList := []string{"foobar"}
-		err := n.getFilteredNamespaces(namespaces, nsList)
+		err := n.GetFilteredNamespaces(namespaces, nsList)
 		if err != ErrorNotFoundNamespace {
 			t.Errorf("wanted %s, got %v", ErrorNotFoundNamespace, err)
 		}

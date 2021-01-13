@@ -10,6 +10,10 @@ var (
 	ErrorNotFoundNamespace = errors.New("ErrorNamespaceNotFound: Namespace does not exist in cluster")
 )
 
+type Namespace struct {
+	Items []string
+}
+
 func iterateNamespaces(namespaces []apiCoreV1.Namespace) []string {
 	var items []string
 	for _, ns := range namespaces {
@@ -30,25 +34,9 @@ func namespaceLookup(ns string, items []string) bool {
 	return false
 }
 
-type Namespace struct {
-	Items []string
-}
-
-//setNamespace sets namespace
-func (n *Namespace) setNamespace(namespace string) {
-	/*
-		//This goes in the caller function
-		namespace, err := cs.CoreV1().Namespaces().Get(ns, v1.GetOptions{})
-		if err != nil {
-			return err
-		}
-		//namespace.ObjectMeta.Name
-	*/
-	n.Items = append(n.Items, namespace)
-}
 
 //getNamespaces get all namespaces besides kube-system
-func (n *Namespace) getNamespaces(namespaces []apiCoreV1.Namespace) {
+func (n *Namespace) GetNamespaces(namespaces []apiCoreV1.Namespace) {
 	/*
 		//namespaces, err := cs.CoreV1().Namespaces().List(v1.ListOptions{})
 		if err != nil {
@@ -62,7 +50,7 @@ func (n *Namespace) getNamespaces(namespaces []apiCoreV1.Namespace) {
 
 //getFilteredNamespace obtains a set of namespaces from all namespaces. It fails
 //if a namespace is not found.
-func (n *Namespace) getFilteredNamespaces(namespaces []apiCoreV1.Namespace, nsList []string) error {
+func (n *Namespace) GetFilteredNamespaces(namespaces []apiCoreV1.Namespace, nsList []string) error {
 
 	var items []string
 	/*

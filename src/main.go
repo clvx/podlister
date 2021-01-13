@@ -14,6 +14,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 var (
@@ -61,36 +62,27 @@ func main() {
 	if err != nil {
 		panic(err.Error())
 	}
-	end.GetAddresses(endpoints)
+	/*
+	   Inputs:
+	   ns{*; *}
+	   ns{*; label}
+	   ns{ns1; *}
+	   ns{ns; label}
+	*/
 
-	//Rendering template
-	var tpl bytes.Buffer
-	tmpl := template.Must(template.ParseFiles(cfg.Template.Name))
-	if err = tmpl.Execute(&tpl, end); err != nil {
-		log.Println(err)
-		os.Exit(2)
+	ns := namespace.Namespace{}
+	if len(cfg.Namespace) > 0 {				//filter given namespaces
+		nsClusterFiltered, err := clientset.CoreV1().Namespaces().List(v1.ListOptions{})
+		if err != nil {
+			log.Fatalf("Error %v", err)
+		}
+		ns.GetFilteredNamespaces(nsClusterFiltered.Items, cfg.Namespace)
+	} else {								//get all namespaces
+		nsClusterList, err := clientset.CoreV1().Namespaces().List(v1.ListOptions{})
+		if err != nil {
+			log.Fatalf("Error %v", err)
+		}
+		ns.GetNamespaces(nsClusterList.Items)
 	}
 
-	//Uploading data
-	s3config := &aws.Config{
-		Credentials: credentials.NewStaticCredentials(cfg.Bucket.Key, cfg.Bucket.Secret, ""),
-		Endpoint:    aws.String(cfg.Bucket.URL),
-		Region:      aws.String(cfg.Bucket.Region),
-	}
-	newSession := session.New(s3config)
-	s3Client := s3.New(newSession)
-
-	object := s3.PutObjectInput{
-		Bucket: aws.String(cfg.Bucket.Name),
-		Key:    aws.String(cfg.Template.Output),
-		Body:   strings.NewReader(tpl.String()),
-		ACL:    aws.String(cfg.Bucket.Privilege),
-	}
-	_, err = s3Client.PutObject(&object)
-	if err != nil {
-		log.Println(err.Error())
-		os.Exit(2)
-	} else {
-		log.Printf("%s Uploaded successfully", cfg.Template.Output)
-	}
 }
