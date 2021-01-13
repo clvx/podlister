@@ -1,20 +1,16 @@
 package main
 
 import (
-	"bytes"
+	"fmt"
 	"log"
 	"os"
-	"strings"
-	"text/template"
+	"path/filepath"
 
-	"podlister/config"
-	"podlister/endpoint"
+	conf "podlister/config"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/ilyakaznacheev/cleanenv"
+	"podlister/namespace"
+
+	"github.com/spf13/viper"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -25,23 +21,26 @@ var (
 	configPath    = "./config/config.yaml"
 )
 
+func loadConfig(path string) (config conf.Config, err error) {
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath(path)
+	viper.AutomaticEnv()
+
+	err = viper.ReadInConfig()
+	if err != nil {
+		return
+	}
+
+	err = viper.Unmarshal(&config)
+	return
+}
+
 func main() {
-	var cfg config.Config
-
-	if err := cleanenv.ReadConfig(configPath, &cfg); err != nil {
-		log.Println(err)
-		os.Exit(2)
-	}
-
-	// Creates the in-cluster config
-	config, err := rest.InClusterConfig()
+	//Loading configs
+	cfg, err := loadConfig("./config")
 	if err != nil {
-		panic(err.Error())
-	}
-	// Creates clientset
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		panic(err.Error())
+		log.Fatal("cannot load config:", err)
 	}
 
 	// Obtaining endpoints
