@@ -43,17 +43,23 @@ func main() {
 		log.Fatal("cannot load config:", err)
 	}
 
-	// Obtaining endpoints
-	end := &endpoint.Endpoint{Svc: cfg.Service.Name}
-	err = end.GetNamespace(namespacePath)
+	//Obtaining kubeconfig
+	kconfig, err := rest.InClusterConfig()
 	if err != nil {
-		log.Println(err)
-		os.Exit(2)
+		kubeconfig := filepath.Join("~", ".kube", "config")
+		if envvar := os.Getenv("KUBECONFIG"); len(envvar) > 0 {
+			kubeconfig = envvar
+		}
+		kconfig, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+		if err != nil {
+			log.Printf("Kubeconfig cannot be loaded: %v\n", err)
+			os.Exit(2)
+		}
 	}
-	endpoints, err := clientset.CoreV1().Endpoints(end.Namespace).Get(end.Svc, v1.GetOptions{})
+	// Creates clientset
+	clientset, err := kubernetes.NewForConfig(kconfig)
 	if err != nil {
-		log.Println(err)
-		os.Exit(2)
+		panic(err.Error())
 	}
 	end.GetAddresses(endpoints)
 
