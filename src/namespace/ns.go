@@ -37,14 +37,6 @@ func namespaceLookup(ns string, items []string) bool {
 
 //getNamespaces get all namespaces besides kube-system
 func (n *Namespace) GetNamespaces(namespaces []apiCoreV1.Namespace) {
-	/*
-		//namespaces, err := cs.CoreV1().Namespaces().List(v1.ListOptions{})
-		if err != nil {
-			return err
-		}
-		//namespaces.Items //[]Namespace
-	*/
-
 	n.Items = iterateNamespaces(namespaces)
 }
 
@@ -53,12 +45,6 @@ func (n *Namespace) GetNamespaces(namespaces []apiCoreV1.Namespace) {
 func (n *Namespace) GetFilteredNamespaces(namespaces []apiCoreV1.Namespace, nsList []string) error {
 
 	var items []string
-	/*
-		namespaces, err := cs.CoreV1().Namespaces().List(v1.ListOptions{})
-		if err != nil {
-			return err
-		}
-	*/
 	items = iterateNamespaces(namespaces)
 	for _, ns := range nsList {
 		if !namespaceLookup(ns, items) {
