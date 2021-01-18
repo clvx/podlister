@@ -1,23 +1,20 @@
 package main
 
 import (
-	"bytes"
+	"fmt"
 	"log"
 	"os"
-	"strings"
-	"text/template"
+	"path/filepath"
 
-	"podlister/config"
-	"podlister/endpoint"
+	conf "podlister/config"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/ilyakaznacheev/cleanenv"
+	"podlister/namespace"
+
+	"github.com/spf13/viper"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 var (
@@ -25,67 +22,67 @@ var (
 	configPath    = "./config/config.yaml"
 )
 
-func main() {
-	var cfg config.Config
+func loadConfig(path string) (config conf.Config, err error) {
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath(path)
+	viper.AutomaticEnv()
 
-	if err := cleanenv.ReadConfig(configPath, &cfg); err != nil {
-		log.Println(err)
-		os.Exit(2)
+	err = viper.ReadInConfig()
+	if err != nil {
+		return
 	}
 
-	// Creates the in-cluster config
-	config, err := rest.InClusterConfig()
+	err = viper.Unmarshal(&config)
+	return
+}
+
+func main() {
+	//Loading configs
+	cfg, err := loadConfig("./config")
 	if err != nil {
-		panic(err.Error())
+		log.Fatal("cannot load config:", err)
+	}
+
+	//Obtaining kubeconfig
+	kconfig, err := rest.InClusterConfig()
+	if err != nil {
+		kubeconfig := filepath.Join("~", ".kube", "config")
+		if envvar := os.Getenv("KUBECONFIG"); len(envvar) > 0 {
+			kubeconfig = envvar
+		}
+		kconfig, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
+		if err != nil {
+			log.Printf("Kubeconfig cannot be loaded: %v\n", err)
+			os.Exit(2)
+		}
 	}
 	// Creates clientset
-	clientset, err := kubernetes.NewForConfig(config)
+	clientset, err := kubernetes.NewForConfig(kconfig)
 	if err != nil {
 		panic(err.Error())
 	}
+	/*
+	   Inputs:
+	   ns{*; *}
+	   ns{*; label}
+	   ns{ns1; *}
+	   ns{ns; label}
+	*/
 
-	// Obtaining endpoints
-	end := &endpoint.Endpoint{Svc: cfg.Service.Name}
-	err = end.GetNamespace(namespacePath)
-	if err != nil {
-		log.Println(err)
-		os.Exit(2)
-	}
-	endpoints, err := clientset.CoreV1().Endpoints(end.Namespace).Get(end.Svc, v1.GetOptions{})
-	if err != nil {
-		log.Println(err)
-		os.Exit(2)
-	}
-	end.GetAddresses(endpoints)
-
-	//Rendering template
-	var tpl bytes.Buffer
-	tmpl := template.Must(template.ParseFiles(cfg.Template.Name))
-	if err = tmpl.Execute(&tpl, end); err != nil {
-		log.Println(err)
-		os.Exit(2)
+	ns := namespace.Namespace{}
+	if len(cfg.Namespace) > 0 {				//filter given namespaces
+		nsClusterFiltered, err := clientset.CoreV1().Namespaces().List(v1.ListOptions{})
+		if err != nil {
+			log.Fatalf("Error %v", err)
+		}
+		ns.GetFilteredNamespaces(nsClusterFiltered.Items, cfg.Namespace)
+	} else {								//get all namespaces
+		nsClusterList, err := clientset.CoreV1().Namespaces().List(v1.ListOptions{})
+		if err != nil {
+			log.Fatalf("Error %v", err)
+		}
+		ns.GetNamespaces(nsClusterList.Items)
 	}
 
-	//Uploading data
-	s3config := &aws.Config{
-		Credentials: credentials.NewStaticCredentials(cfg.Bucket.Key, cfg.Bucket.Secret, ""),
-		Endpoint:    aws.String(cfg.Bucket.URL),
-		Region:      aws.String(cfg.Bucket.Region),
-	}
-	newSession := session.New(s3config)
-	s3Client := s3.New(newSession)
-
-	object := s3.PutObjectInput{
-		Bucket: aws.String(cfg.Bucket.Name),
-		Key:    aws.String(cfg.Template.Output),
-		Body:   strings.NewReader(tpl.String()),
-		ACL:    aws.String(cfg.Bucket.Privilege),
-	}
-	_, err = s3Client.PutObject(&object)
-	if err != nil {
-		log.Println(err.Error())
-		os.Exit(2)
-	} else {
-		log.Printf("%s Uploaded successfully", cfg.Template.Output)
-	}
 }

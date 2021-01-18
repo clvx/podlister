@@ -1,11 +1,12 @@
 ## Overview
 
-Construct a system which uses a load balancer to balance traffic between any number 
-of nginx containers, which serve a static file containing the IP addresses of all 
-of the currently connected nginx containers. This should all work on the fly as 
-nginx containers are added or removed.
+Podlister is an utility to provide a data graph of all the endpoints for a 
+service in a Kubernetes cluster.
 
-Review `REQUIREMENTS.md` for constraints details.
+ingress -> service -> endpoints -> pods, or
+
+istio virtual service -> service -> endpoints -> pods
+
 
 ## Podlister
 
@@ -19,8 +20,6 @@ container deployment.
 - Kubectl v 1.17
 - Go version 1.14.7
 - Docker 19.03.12
-- Digital Ocean Kubernetes
-- Digital Ocean Spaces Storage Object
 - Docker registry
 
 Even though the above are the major dependencies, this has been developed using 

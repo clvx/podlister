@@ -1,9 +1,7 @@
-bucket:
-  url:
-
-template:
-  name:
-  output:
-
-service:
-  name:
+podlister:
+  namespace:
+  - foo
+    bar
+  labels:
+  - foobar
+    foobaz
